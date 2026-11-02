@@ -72,9 +72,12 @@ export default function ComponentCard({
     loadData(newPeriod);
   };
 
+  const filtersKey = JSON.stringify(dashboardFilters);
+  const configKey = JSON.stringify(component.configuration);
+
   useEffect(() => {
     loadData();
-  }, [component.configuration, dashboardFilters]);
+  }, [filtersKey, configKey]);
 
   const widthCols = component.layout?.width || 6;
   const colSpanClass =

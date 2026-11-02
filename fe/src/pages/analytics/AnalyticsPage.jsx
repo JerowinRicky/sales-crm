@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   ChevronDown, RefreshCw, Plus, MoreHorizontal, Save, X, Target,
-  Edit2, Copy, Trash2, LayoutGrid, Calendar, User, Filter, Star
+  Edit2, Copy, Trash2, LayoutGrid, Calendar, User, Filter, Star,
+  Layers, RotateCcw
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { analyticsAPI } from '../../services/api';
@@ -24,8 +25,9 @@ export default function AnalyticsPage() {
   const [schemaMeta, setSchemaMeta] = useState(null);
 
   const [selectedUser, setSelectedUser] = useState('');
-  const [selectedStage, setSelectedStage] = useState('won_po_receipt');
-  const [selectedDateRange, setSelectedDateRange] = useState('this_month');
+  const [selectedDomain, setSelectedDomain] = useState('');
+  const [selectedStage, setSelectedStage] = useState('all');
+  const [selectedDateRange, setSelectedDateRange] = useState('all');
   const [customDateFrom, setCustomDateFrom] = useState('');
   const [customDateTo, setCustomDateTo] = useState('');
 
@@ -307,11 +309,28 @@ export default function AnalyticsPage() {
 
   const activeFilters = {
     user_id: selectedUser || null,
+    domain_id: selectedDomain || null,
     stage_id: selectedStage,
     date_range: selectedDateRange,
     date_from: selectedDateRange === 'custom' ? customDateFrom : null,
     date_to: selectedDateRange === 'custom' ? customDateTo : null,
     _refreshKey: refreshKey
+  };
+
+  const hasActiveFilters = Boolean(
+    selectedUser ||
+    selectedDomain ||
+    (selectedStage && selectedStage !== 'all') ||
+    (selectedDateRange && selectedDateRange !== 'all')
+  );
+
+  const handleResetFilters = () => {
+    setSelectedUser('');
+    setSelectedDomain('');
+    setSelectedStage('all');
+    setSelectedDateRange('all');
+    setCustomDateFrom('');
+    setCustomDateTo('');
   };
 
   return (
@@ -452,16 +471,34 @@ export default function AnalyticsPage() {
             </div>
           )}
 
+          {/* Domain Filter */}
+          {schemaMeta?.domains && schemaMeta.domains.length > 0 && (
+            <div className="relative min-w-[140px]">
+              <select
+                value={selectedDomain}
+                onChange={e => setSelectedDomain(e.target.value)}
+                className="w-full h-9 pl-8 pr-7 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-700 shadow-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30 cursor-pointer appearance-none transition"
+              >
+                <option value="">All Domains</option>
+                {schemaMeta.domains.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+              <Layers size={13} className="absolute left-2.5 top-2.5 text-purple-600 pointer-events-none" />
+              <ChevronDown size={13} className="absolute right-2.5 top-2.5 text-gray-400 pointer-events-none" />
+            </div>
+          )}
+
           {/* Stage Calculation Filter */}
-          <div className="relative min-w-[190px]">
+          <div className="relative min-w-[180px]">
             <select
               value={selectedStage}
               onChange={e => setSelectedStage(e.target.value)}
               title="Filter stage calculated for executive amounts and metrics"
               className="w-full h-9 pl-8 pr-7 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-700 shadow-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30 cursor-pointer appearance-none transition"
             >
-              <option value="won_po_receipt">Won - PO Receipt (Default)</option>
-              <option value="all">All Stages</option>
+              <option value="all">All Stages (Total Pipeline)</option>
+              <option value="won_po_receipt">Won - PO Receipt</option>
               {schemaMeta?.stages?.map(s => {
                 if (s.name?.toLowerCase().includes('won') && s.name?.toLowerCase().includes('po')) return null;
                 return (
@@ -504,6 +541,18 @@ export default function AnalyticsPage() {
                 className="h-9 px-2 border border-gray-200 rounded-lg text-xs outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
               />
             </div>
+          )}
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              title="Reset all filters to default"
+              className="h-9 px-2.5 rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 flex items-center gap-1.5 text-xs font-semibold transition shadow-xs"
+            >
+              <RotateCcw size={12} />
+              <span>Reset</span>
+            </button>
           )}
         </div>
 

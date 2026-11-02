@@ -204,16 +204,35 @@ function applyDataScoping({ user, ds, dashboard_filters = {}, whereClauses, quer
   const isSalesManager = user.role_name === 'sales_manager';
   const userDomainIds = user.domain_ids || [];
   const isLeadsSource = ds.table && ds.table.includes('leads');
+  const isCustomersSource = ds.table && ds.table.includes('customers');
   const filterUserId = dashboard_filters.user_id ? Number(dashboard_filters.user_id) : null;
+  const filterDomainId = dashboard_filters.domain_id ? Number(dashboard_filters.domain_id) : null;
 
   if (isAdmin) {
     if (filterUserId && ds.ownerColumn) {
       whereClauses.push(`${ds.ownerColumn} = ?`);
       queryParams.push(filterUserId);
     }
+    if (filterDomainId) {
+      if (isLeadsSource) {
+        whereClauses.push(`l.domain_id = ?`);
+        queryParams.push(filterDomainId);
+      } else if (isCustomersSource) {
+        whereClauses.push(`c.assigned_to IN (SELECT user_id FROM user_domains WHERE domain_id = ?)`);
+        queryParams.push(filterDomainId);
+      }
+    }
   } else if (isSalesManager) {
     if (isLeadsSource) {
-      if (userDomainIds.length > 0) {
+      if (filterDomainId) {
+        if (filterUserId) {
+          whereClauses.push(`l.domain_id = ? AND l.assigned_to = ?`);
+          queryParams.push(filterDomainId, filterUserId);
+        } else {
+          whereClauses.push(`l.domain_id = ?`);
+          queryParams.push(filterDomainId);
+        }
+      } else if (userDomainIds.length > 0) {
         if (filterUserId) {
           whereClauses.push(`((l.domain_id IN (${userDomainIds.map(() => '?').join(',')}) OR l.assigned_to = ?) AND l.assigned_to = ?)`);
           queryParams.push(...userDomainIds, user.id, filterUserId);
@@ -229,6 +248,9 @@ function applyDataScoping({ user, ds, dashboard_filters = {}, whereClauses, quer
       if (filterUserId) {
         whereClauses.push(`${ds.ownerColumn} = ?`);
         queryParams.push(filterUserId);
+      } else if (filterDomainId) {
+        whereClauses.push(`(${ds.ownerColumn} IN (SELECT user_id FROM user_domains WHERE domain_id = ?))`);
+        queryParams.push(filterDomainId);
       } else if (userDomainIds.length > 0) {
         whereClauses.push(`(${ds.ownerColumn} IN (SELECT user_id FROM user_domains WHERE domain_id IN (${userDomainIds.map(() => '?').join(',')})) OR ${ds.ownerColumn} = ?)`);
         queryParams.push(...userDomainIds, user.id);
@@ -242,6 +264,10 @@ function applyDataScoping({ user, ds, dashboard_filters = {}, whereClauses, quer
     if (ds.ownerColumn) {
       whereClauses.push(`${ds.ownerColumn} = ?`);
       queryParams.push(user.id);
+    }
+    if (filterDomainId && isLeadsSource) {
+      whereClauses.push(`l.domain_id = ?`);
+      queryParams.push(filterDomainId);
     }
   }
 }
@@ -641,6 +667,7 @@ const isAdmin = req.user.role_name === 'admin';
     const isSalesperson = !isAdmin && !isSalesManager;
     const userDomainIds = req.user.domain_ids || [];
     const filteredUserId = isSalesperson ? req.user.id : (dashboard_filters.user_id ? Number(dashboard_filters.user_id) : null);
+    const filteredDomainId = dashboard_filters.domain_id ? Number(dashboard_filters.domain_id) : null;
 
     const whereClauses = [ds.baseWhere];
     const queryParams = [];
@@ -836,7 +863,13 @@ const isAdmin = req.user.role_name === 'admin';
         LEFT JOIN roles r ON u.role_id = r.id
       `;
       const usersParams = [];
-      if (isSalesManager && userDomainIds.length > 0) {
+      if (filteredDomainId) {
+        usersSql += `
+          LEFT JOIN user_domains ud ON u.id = ud.user_id
+          WHERE u.is_active = 1 AND ud.domain_id = ?
+        `;
+        usersParams.push(filteredDomainId);
+      } else if (isSalesManager && userDomainIds.length > 0) {
         usersSql += `
           LEFT JOIN user_domains ud ON u.id = ud.user_id
           WHERE u.is_active = 1 AND (ud.domain_id IN (${userDomainIds.map(() => '?').join(',')}) OR u.id = ?)
@@ -1085,7 +1118,17 @@ const isAdmin = req.user.role_name === 'admin';
         lLeadClauses.push('l.assigned_to = ?');
         lLeadParams.push(req.user.id);
       } else if (isSalesManager) {
-        if (userDomainIds.length > 0) {
+        if (filteredUserId) {
+          userWhereClause += ' AND u.id = ?';
+          userWhereParams.push(filteredUserId);
+          lLeadClauses.push('l.assigned_to = ?');
+          lLeadParams.push(filteredUserId);
+        } else if (filteredDomainId) {
+          userWhereClause += ` AND (u.id IN (SELECT user_id FROM user_domains WHERE domain_id = ?) OR u.id = ?)`;
+          userWhereParams.push(filteredDomainId, req.user.id);
+          lLeadClauses.push(`(l.domain_id = ? OR l.assigned_to = ?)`);
+          lLeadParams.push(filteredDomainId, req.user.id);
+        } else if (userDomainIds.length > 0) {
           userWhereClause += ` AND (u.id IN (SELECT user_id FROM user_domains WHERE domain_id IN (${userDomainIds.map(() => '?').join(',')})) OR u.id = ?)`;
           userWhereParams.push(...userDomainIds, req.user.id);
           lLeadClauses.push(`(l.domain_id IN (${userDomainIds.map(() => '?').join(',')}) OR l.assigned_to = ?)`);
@@ -1095,6 +1138,20 @@ const isAdmin = req.user.role_name === 'admin';
           userWhereParams.push(req.user.id);
           lLeadClauses.push('l.assigned_to = ?');
           lLeadParams.push(req.user.id);
+        }
+      } else {
+        // Admin
+        if (filteredUserId) {
+          userWhereClause += ' AND u.id = ?';
+          userWhereParams.push(filteredUserId);
+          lLeadClauses.push('l.assigned_to = ?');
+          lLeadParams.push(filteredUserId);
+        }
+        if (filteredDomainId) {
+          userWhereClause += ` AND u.id IN (SELECT user_id FROM user_domains WHERE domain_id = ?)`;
+          userWhereParams.push(filteredDomainId);
+          lLeadClauses.push('l.domain_id = ?');
+          lLeadParams.push(filteredDomainId);
         }
       }
 
@@ -1179,9 +1236,9 @@ const isAdmin = req.user.role_name === 'admin';
 
       applyDataScoping({ user: req.user, ds: DATA_SOURCES.leads, dashboard_filters, whereClauses: vWhereClauses, queryParams: vQueryParams });
 
-      if (dashboard_filters.domain_id) {
-        vWhereClauses.push('l.domain_id = ?');
-        vQueryParams.push(Number(dashboard_filters.domain_id));
+      if (stageClauses.length > 0) {
+        vWhereClauses.push(...stageClauses);
+        vQueryParams.push(...stageParams);
       }
 
       // Query counts for Today and Tomorrow within scoped leads
@@ -1489,6 +1546,7 @@ const isAdmin = req.user.role_name === 'admin';
     const isSalesperson = !isAdmin && !isSalesManager;
     const userDomainIds = req.user.domain_ids || [];
     const filteredUserId = isSalesperson ? req.user.id : (dashboard_filters.user_id ? Number(dashboard_filters.user_id) : null);
+    const filteredDomainId = dashboard_filters.domain_id ? Number(dashboard_filters.domain_id) : null;
 
     let usersSql = `SELECT DISTINCT u.id, u.name, u.email, u.department FROM users u`;
     const usersParams = [];
