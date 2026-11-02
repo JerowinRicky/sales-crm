@@ -12,6 +12,18 @@ import ComponentEditorModal from '../../components/analytics/ComponentEditorModa
 import { DashboardDetailsModal, ManageTargetsModal } from '../../components/analytics/DashboardModals';
 import ConfirmModal from '../../components/common/ConfirmModal';
 
+const DEFAULT_DATE_RANGES = [
+  { key: 'all', label: 'All Time' },
+  { key: 'today', label: 'Today' },
+  { key: 'yesterday', label: 'Yesterday' },
+  { key: 'this_week', label: 'This Week' },
+  { key: 'this_month', label: 'This Month' },
+  { key: 'last_month', label: 'Last Month' },
+  { key: 'this_quarter', label: 'This Quarter' },
+  { key: 'this_year', label: 'This Year' },
+  { key: 'custom', label: 'Custom Range' }
+];
+
 export default function AnalyticsPage() {
   const { user, isAdmin, isManager } = useAuth();
   const [dashboards, setDashboards] = useState([]);
@@ -517,7 +529,7 @@ export default function AnalyticsPage() {
               onChange={e => setSelectedDateRange(e.target.value)}
               className="w-full h-9 pl-8 pr-7 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-700 shadow-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30 cursor-pointer appearance-none transition"
             >
-              {schemaMeta?.date_ranges?.map(r => (
+              {(schemaMeta?.date_ranges && schemaMeta.date_ranges.length > 0 ? schemaMeta.date_ranges : DEFAULT_DATE_RANGES).map(r => (
                 <option key={r.key} value={r.key}>{r.label}</option>
               ))}
             </select>

@@ -1541,12 +1541,10 @@ const isAdmin = req.user.role_name === 'admin';
 
 exports.getSchemaMetadata = async (req, res) => {
   try {
-const isAdmin = req.user.role_name === 'admin';
+    const isAdmin = req.user.role_name === 'admin';
     const isSalesManager = req.user.role_name === 'sales_manager';
     const isSalesperson = !isAdmin && !isSalesManager;
     const userDomainIds = req.user.domain_ids || [];
-    const filteredUserId = isSalesperson ? req.user.id : (dashboard_filters.user_id ? Number(dashboard_filters.user_id) : null);
-    const filteredDomainId = dashboard_filters.domain_id ? Number(dashboard_filters.domain_id) : null;
 
     let usersSql = `SELECT DISTINCT u.id, u.name, u.email, u.department FROM users u`;
     const usersParams = [];
