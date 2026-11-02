@@ -1243,13 +1243,13 @@ const isAdmin = req.user.role_name === 'admin';
 
       // Query counts for Today and Tomorrow within scoped leads
       const [todayCountRows] = await pool.query(
-        `SELECT COUNT(l.id) AS cnt FROM leads l WHERE ${vWhereClauses.join(' AND ')} AND DATE(l.next_visit) = CURDATE()`,
+        `SELECT COUNT(l.id) AS cnt FROM leads l LEFT JOIN lead_stages s ON l.stage_id = s.id WHERE ${vWhereClauses.join(' AND ')} AND DATE(l.next_visit) = CURDATE()`,
         vQueryParams
       );
       const todayCount = Number(todayCountRows[0]?.cnt || 0);
 
       const [tomorrowCountRows] = await pool.query(
-        `SELECT COUNT(l.id) AS cnt FROM leads l WHERE ${vWhereClauses.join(' AND ')} AND DATE(l.next_visit) = CURDATE() + INTERVAL 1 DAY`,
+        `SELECT COUNT(l.id) AS cnt FROM leads l LEFT JOIN lead_stages s ON l.stage_id = s.id WHERE ${vWhereClauses.join(' AND ')} AND DATE(l.next_visit) = CURDATE() + INTERVAL 1 DAY`,
         vQueryParams
       );
       const tomorrowCount = Number(tomorrowCountRows[0]?.cnt || 0);
@@ -1272,7 +1272,7 @@ const isAdmin = req.user.role_name === 'admin';
       }
 
       const [totalCountRows] = await pool.query(
-        `SELECT COUNT(l.id) AS cnt FROM leads l WHERE ${itemClauses.join(' AND ')}`,
+        `SELECT COUNT(l.id) AS cnt FROM leads l LEFT JOIN lead_stages s ON l.stage_id = s.id WHERE ${itemClauses.join(' AND ')}`,
         itemParams
       );
       const totalCount = Number(totalCountRows[0]?.cnt || 0);
