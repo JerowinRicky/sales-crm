@@ -38,8 +38,8 @@ export default function AnalyticsPage() {
 
   const [selectedUser, setSelectedUser] = useState('');
   const [selectedDomain, setSelectedDomain] = useState('');
-  const [selectedStage, setSelectedStage] = useState('all');
-  const [selectedDateRange, setSelectedDateRange] = useState('all');
+  const [selectedStage, setSelectedStage] = useState('won_po_receipt');
+  const [selectedDateRange, setSelectedDateRange] = useState('this_month');
   const [customDateFrom, setCustomDateFrom] = useState('');
   const [customDateTo, setCustomDateTo] = useState('');
 
@@ -332,15 +332,15 @@ export default function AnalyticsPage() {
   const hasActiveFilters = Boolean(
     selectedUser ||
     selectedDomain ||
-    (selectedStage && selectedStage !== 'all') ||
-    (selectedDateRange && selectedDateRange !== 'all')
+    (selectedStage && selectedStage !== 'won_po_receipt') ||
+    (selectedDateRange && selectedDateRange !== 'this_month')
   );
 
   const handleResetFilters = () => {
     setSelectedUser('');
     setSelectedDomain('');
-    setSelectedStage('all');
-    setSelectedDateRange('all');
+    setSelectedStage('won_po_receipt');
+    setSelectedDateRange('this_month');
     setCustomDateFrom('');
     setCustomDateTo('');
   };
