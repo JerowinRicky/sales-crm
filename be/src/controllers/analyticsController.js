@@ -686,7 +686,11 @@ const isAdmin = req.user.role_name === 'admin';
 
     const activeDateFieldKey = date_field || Object.keys(ds.dateFields)[0];
     const dateDef = ds.dateFields[activeDateFieldKey];
-    const activeDateRange = dashboard_filters.date_range || date_range || 'all';
+    // If a component is explicitly configured with date_range: 'all' (e.g., Total Client Accounts, Accounts by Industry),
+    // preserve 'all' so cumulative CRM accounts are not zeroed out by monthly sales pipeline filters
+    const activeDateRange = (configuration.date_range === 'all' && ds.table && ds.table.includes('customers'))
+      ? 'all'
+      : (dashboard_filters.date_range || date_range || 'all');
     const activeDateFrom = dashboard_filters.date_from || date_from;
     const activeDateTo = dashboard_filters.date_to || date_to;
 
@@ -813,18 +817,32 @@ const isAdmin = req.user.role_name === 'admin';
       const thRed = Number(thresholds?.red ?? 50);
       const thAmber = Number(thresholds?.amber ?? 80);
 
+      // Determine metric category to accurately match database targets
+      const isRevenueMetric = (data_source === 'leads' && (metric === 'estimated_value' || metric === 'revenue'));
+      const isLeadCountMetric = (data_source === 'leads' && (metric === 'id' || metric === 'count'));
+      const isCustomerCountMetric = (data_source === 'customers' && (metric === 'id' || metric === 'count'));
+
+      let metricMatches = [targetMetric];
+      if (isRevenueMetric) {
+        metricMatches = ['leads_estimated_value', 'estimated_value', 'revenue'];
+      } else if (isLeadCountMetric) {
+        metricMatches = ['leads_count', 'leads_id', 'leads'];
+      } else if (isCustomerCountMetric) {
+        metricMatches = ['customers_count', 'customers_id', 'customers'];
+      }
+
       // Check if a specific single user is selected
       if (filteredUserId) {
         // Fetch user name
         const [userRows] = await pool.query(`SELECT id, name, email FROM users WHERE id = ?`, [filteredUserId]);
         const userName = userRows[0]?.name || 'Assigned User';
 
-        // Check if there is an individual target configured for this specific user
+        // Check if there is an individual target configured for this specific user matching metric
         const [indivTgt] = await pool.query(
           `SELECT * FROM analytics_targets
-           WHERE user_id = ? AND (metric = ? OR metric = 'leads_estimated_value' OR id = ?)
+           WHERE user_id = ? AND (metric IN (?) OR id = ?)
            ORDER BY updated_at DESC, id DESC LIMIT 1`,
-          [filteredUserId, targetMetric, target_id || 0]
+          [filteredUserId, metricMatches, target_id || 0]
         );
 
         let userTargetVal = numericTarget;
@@ -891,18 +909,42 @@ const isAdmin = req.user.role_name === 'admin';
       usersSql += ` ORDER BY u.name ASC`;
       const [allActiveUsers] = await pool.query(usersSql, usersParams);
 
-      // Query individual targets for this metric
+      // Query individual targets strictly matching this metric category
       const [allUserTargets] = await pool.query(
-        `SELECT * FROM analytics_targets WHERE user_id IS NOT NULL ORDER BY updated_at DESC, id DESC`
+        `SELECT * FROM analytics_targets WHERE user_id IS NOT NULL AND metric IN (?) ORDER BY updated_at DESC, id DESC`,
+        [metricMatches]
       );
       const userTargetMap = {};
       allUserTargets.forEach(t => {
-        if (t.user_id && (t.metric === targetMetric || t.metric === 'leads_estimated_value' || t.metric === 'estimated_value')) {
+        if (t.user_id) {
           if (userTargetMap[t.user_id] === undefined || t.target_period === targetPeriod) {
             userTargetMap[t.user_id] = Number(t.target_value);
           }
         }
       });
+
+      // Overall Team Target:
+      // If target_type is 'static' and numericTarget > 0, use static target
+      // If target_type is 'database' or numericTarget is 0, fetch database team target or sum
+      let totalTeamTarget = 0;
+      if (target_type === 'static' && numericTarget > 0) {
+        totalTeamTarget = numericTarget;
+      } else {
+        let dbTeamTarget = 0;
+        if (target_id) {
+          const [tRows] = await pool.query(`SELECT * FROM analytics_targets WHERE id = ?`, [target_id]);
+          if (tRows.length > 0) dbTeamTarget = Number(tRows[0].target_value || 0);
+        }
+        if (!dbTeamTarget) {
+          const [teamTargets] = await pool.query(
+            `SELECT * FROM analytics_targets WHERE user_id IS NULL AND metric IN (?) ORDER BY updated_at DESC, id DESC LIMIT 1`,
+            [metricMatches]
+          );
+          if (teamTargets.length > 0) dbTeamTarget = Number(teamTargets[0].target_value || 0);
+        }
+        const sumUserTargets = Object.values(userTargetMap).reduce((a, b) => a + b, 0);
+        totalTeamTarget = dbTeamTarget > 0 ? dbTeamTarget : (numericTarget > 0 ? numericTarget : sumUserTargets);
+      }
 
       // Query each user's actual value
       const userActualMap = {};
@@ -929,10 +971,10 @@ const isAdmin = req.user.role_name === 'admin';
       // Build user breakdown array
       const userBreakdown = allActiveUsers.map(u => {
         const userActual = userActualMap[u.id] || 0;
-        // User target: specific target if defined, otherwise team benchmark or distributed target
+        // User target: specific target if defined for this metric, otherwise distributed team target
         const userTarget = userTargetMap[u.id] !== undefined
           ? userTargetMap[u.id]
-          : (numericTarget > 0 ? (allActiveUsers.length > 1 ? Math.round(numericTarget / allActiveUsers.length) : numericTarget) : 0);
+          : (totalTeamTarget > 0 ? (allActiveUsers.length > 1 ? Math.round(totalTeamTarget / allActiveUsers.length) : totalTeamTarget) : 0);
 
         const userProgress = userTarget > 0 ? Number(((userActual / userTarget) * 100).toFixed(1)) : 0;
         let userStatus = 'green';
@@ -949,26 +991,6 @@ const isAdmin = req.user.role_name === 'admin';
           achieved: userProgress >= 100
         };
       });
-
-      // Overall Team Target:
-      // Priority 1: Check database team target (analytics_targets where user_id IS NULL)
-      // Priority 2: Check static numericTarget from component configuration
-      // Priority 3: Sum of all user targets
-      const [teamTargets] = await pool.query(
-        `SELECT * FROM analytics_targets WHERE user_id IS NULL AND (metric = ? OR metric = 'leads_estimated_value' OR metric = 'estimated_value') ORDER BY updated_at DESC, id DESC LIMIT 1`,
-        [targetMetric]
-      );
-      const dbTeamTarget = teamTargets.length > 0 ? Number(teamTargets[0].target_value || 0) : 0;
-      const sumUserTargets = Object.values(userTargetMap).reduce((a, b) => a + b, 0);
-
-      let totalTeamTarget = 0;
-      if (dbTeamTarget > 0) {
-        totalTeamTarget = dbTeamTarget;
-      } else if (numericTarget > 0) {
-        totalTeamTarget = numericTarget;
-      } else {
-        totalTeamTarget = sumUserTargets;
-      }
 
       // Overall Team Actual
       const sqlActual = `SELECT ${aggExpr} AS actual_value FROM ${ds.table} ${ds.joins} ${whereSql}`;
@@ -1048,8 +1070,11 @@ const isAdmin = req.user.role_name === 'admin';
       const data = funnelRows.map((r, idx) => {
         const count = Number(r.lead_count || 0);
         const value = Number(r.stage_value || 0);
+        const isTerminalOrLost = (r.stage_name || '').toLowerCase().includes('lost') || (r.stage_name || '').toLowerCase().includes('hold');
         const prevCount = idx > 0 ? Number(funnelRows[idx - 1].lead_count || 0) : count;
-        const conversionRate = prevCount > 0 ? Number(((count / prevCount) * 100).toFixed(1)) : 0;
+        const conversionRate = isTerminalOrLost
+          ? (totalValue > 0 ? Number(((count / (funnelRows[0]?.lead_count || count)) * 100).toFixed(1)) : 0)
+          : (prevCount > 0 ? Number(((count / prevCount) * 100).toFixed(1)) : 0);
         const overallRate = maxCount > 0 ? Number(((count / maxCount) * 100).toFixed(1)) : 0;
 
         return {
@@ -1341,7 +1366,9 @@ const isAdmin = req.user.role_name === 'admin';
         dQueryParams.push(...currentParams);
       }
 
-      if (stageClauses.length > 0) {
+      // Domain breakdown shows total domain leads vs won deals.
+      // Do not restrict outer query to won_po_receipt alone so full domain pipeline is visible.
+      if (stageClauses.length > 0 && dashboard_filters.stage_id && dashboard_filters.stage_id !== 'all' && dashboard_filters.stage_id !== 'won_po_receipt') {
         dWhereClauses.push(...stageClauses);
         dQueryParams.push(...stageParams);
       }
@@ -1463,8 +1490,9 @@ const isAdmin = req.user.role_name === 'admin';
           -- C: PO Scheduled (Stage 11 PO Scheduled)
           SUM(CASE WHEN l.stage_id = 11 OR s.name LIKE '%PO%Scheduled%' THEN 1 ELSE 0 END) AS c_count,
           SUM(CASE WHEN l.stage_id = 11 OR s.name LIKE '%PO%Scheduled%' THEN COALESCE(l.estimated_value, 0) ELSE 0 END) AS c_value,
-          COUNT(l.id) AS total_count,
-          SUM(COALESCE(l.estimated_value, 0)) AS total_value
+          -- LPTQC Total Pipeline (sum of active stages L, P, T, Q, C)
+          SUM(CASE WHEN l.stage_id IN (1, 3, 4, 5, 11) OR s.name LIKE '%PO%Scheduled%' THEN 1 ELSE 0 END) AS total_count,
+          SUM(CASE WHEN l.stage_id IN (1, 3, 4, 5, 11) OR s.name LIKE '%PO%Scheduled%' THEN COALESCE(l.estimated_value, 0) ELSE 0 END) AS total_value
         FROM users u
         LEFT JOIN roles r ON u.role_id = r.id
         LEFT JOIN leads l ON l.assigned_to = u.id AND ${lptqcLeadClauses.join(' AND ')}

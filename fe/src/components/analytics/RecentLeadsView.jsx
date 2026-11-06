@@ -76,7 +76,7 @@ export default function RecentLeadsView({ data, configuration, onRefresh }) {
             </span>
           </div>
           <div className="text-xl font-black text-blue-950 tracking-tight">
-            {formatMetricValue(last_1_day_value, 'currency', '₹')}
+            {formatMetricValue(last_1_day_value, '₹')}
           </div>
           <span className="text-[10px] text-blue-700/80 font-medium">New Pipeline Value</span>
         </div>
@@ -100,7 +100,7 @@ export default function RecentLeadsView({ data, configuration, onRefresh }) {
             </span>
           </div>
           <div className="text-xl font-black text-indigo-950 tracking-tight">
-            {formatMetricValue(last_2_days_value, 'currency', '₹')}
+            {formatMetricValue(last_2_days_value, '₹')}
           </div>
           <span className="text-[10px] text-indigo-700/80 font-medium">Accumulated Pipeline</span>
         </div>
@@ -247,7 +247,7 @@ export default function RecentLeadsView({ data, configuration, onRefresh }) {
                   </div>
 
                   <div className="font-bold text-xs text-gray-900">
-                    {formatMetricValue(item.estimated_value || 0, 'currency', '₹')}
+                    {formatMetricValue(item.estimated_value || 0, '₹')}
                   </div>
                 </div>
               </div>
