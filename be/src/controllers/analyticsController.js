@@ -1314,13 +1314,6 @@ const isAdmin = req.user.role_name === 'admin';
       );
       const upcomingCount = Number(upcomingCountRows[0]?.cnt || 0);
 
-      // Query Overdue Visits (scheduled in the past on active deals, not won or lost)
-      const [overdueRows] = await pool.query(
-        `SELECT COUNT(l.id) AS cnt FROM leads l WHERE ${vWhereClauses.join(' AND ')} AND DATE(l.next_visit) < CURDATE() AND l.stage_id NOT IN (8, 9)`,
-        vQueryParams
-      );
-      const overdueCount = Number(overdueRows[0]?.cnt || 0);
-
       // Query Earliest Next Scheduled Visit Date (useful for weekends / Fridays when today & tomorrow are 0)
       const [nextDayRows] = await pool.query(
         `SELECT DATE(l.next_visit) AS next_date, COUNT(l.id) AS cnt 
@@ -1386,39 +1379,18 @@ const isAdmin = req.user.role_name === 'admin';
 
       const [items] = await pool.query(itemSql, [...itemParams, limitNum]);
 
-      // Query Overdue Items for instant access
-      const overdueSql = `
-        SELECT 
-          l.id, l.title, l.company_name, l.contact_name, l.contact_phone, l.contact_email,
-          l.next_visit, l.estimated_value, l.priority,
-          s.name AS stage_name, s.color AS stage_color,
-          u.name AS assigned_to_name,
-          dom.name AS domain_name,
-          'overdue' AS visit_timing
-        FROM leads l
-        LEFT JOIN lead_stages s ON l.stage_id = s.id
-        LEFT JOIN users u ON l.assigned_to = u.id
-        LEFT JOIN domains dom ON l.domain_id = dom.id
-        WHERE ${vWhereClauses.join(' AND ')} AND DATE(l.next_visit) < CURDATE() AND l.stage_id NOT IN (8, 9)
-        ORDER BY l.next_visit DESC
-        LIMIT ?
-      `;
-      const [overdueItems] = await pool.query(overdueSql, [...vQueryParams, limitNum]);
-
       return res.json({
         success: true,
         data: {
           today_count: todayCount,
           tomorrow_count: tomorrowCount,
           upcoming_count: upcomingCount,
-          overdue_count: overdueCount,
           next_day_date: nextDayDate,
           next_day_count: nextDayCount,
           next_7_days_count: next7DaysCount,
           total_count: totalCount,
           visit_range: visitRange,
           items: items,
-          overdue_items: overdueItems
         }
       });
     }

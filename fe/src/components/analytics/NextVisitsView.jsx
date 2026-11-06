@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import {
   Calendar, Clock, User, Phone, Mail, Building,
   CheckCircle, ArrowUpRight, Sparkles, MapPin, Tag,
-  AlertTriangle, ArrowRight
+  ArrowRight
 } from 'lucide-react';
 import { formatMetricValue } from './TargetMeterView';
 
 export default function NextVisitsView({ data, configuration, onRefresh }) {
-  const [filterTab, setFilterTab] = useState('all'); // 'all', 'today', 'tomorrow', 'next_7_days', 'overdue'
+  const [filterTab, setFilterTab] = useState('all'); // 'all', 'today', 'tomorrow', 'next_7_days'
 
   if (!data) return null;
 
@@ -15,13 +15,11 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
     today_count = 0,
     tomorrow_count = 0,
     upcoming_count = 0,
-    overdue_count = 0,
     next_day_date = null,
     next_day_count = 0,
     next_7_days_count = 0,
     total_count = 0,
-    items = [],
-    overdue_items = []
+    items = []
   } = data;
 
   const displayTotal = upcoming_count || total_count;
@@ -43,9 +41,7 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
 
   // Determine active items list based on selected filterTab
   let activeList = items;
-  if (filterTab === 'overdue') {
-    activeList = overdue_items.length > 0 ? overdue_items : items.filter(i => i.visit_timing === 'overdue');
-  } else if (filterTab === 'today') {
+  if (filterTab === 'today') {
     activeList = items.filter(item => item.visit_timing === 'today');
   } else if (filterTab === 'tomorrow') {
     activeList = items.filter(item => item.visit_timing === 'tomorrow');
@@ -65,50 +61,50 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
 
   return (
     <div className="flex flex-col h-full space-y-3 p-1">
-      {/* Top Metric Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      {/* Top Metric Cards - 3 Columns */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         {/* Today */}
         <div
           onClick={() => setFilterTab(filterTab === 'today' ? 'all' : 'today')}
-          className={`p-2.5 rounded-xl border transition cursor-pointer ${
+          className={`p-3 rounded-xl border transition cursor-pointer ${
             filterTab === 'today'
               ? 'bg-emerald-50/90 border-emerald-400 ring-1 ring-emerald-400/50 shadow-xs'
               : 'bg-emerald-50/40 border-emerald-100 hover:bg-emerald-50/70 hover:border-emerald-200'
           }`}
         >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1 truncate">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5 truncate">
               <span className={`w-2 h-2 rounded-full ${today_count > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-emerald-300'}`}></span>
               Today
             </span>
-            <Calendar size={13} className="text-emerald-600 shrink-0" />
+            <Calendar size={14} className="text-emerald-600 shrink-0" />
           </div>
           <div className="text-2xl font-black text-emerald-900 tracking-tight">
             {today_count}
           </div>
-          <span className="text-[10px] text-emerald-700/80 font-medium">Scheduled Today</span>
+          <span className="text-[11px] text-emerald-700/80 font-medium">Scheduled Today</span>
         </div>
 
         {/* Tomorrow or Next Scheduled Working Day */}
         <div
           onClick={() => setFilterTab(tomorrow_count > 0 ? (filterTab === 'tomorrow' ? 'all' : 'tomorrow') : 'all')}
-          className={`p-2.5 rounded-xl border transition cursor-pointer ${
+          className={`p-3 rounded-xl border transition cursor-pointer ${
             filterTab === 'tomorrow'
               ? 'bg-blue-50/90 border-blue-400 ring-1 ring-blue-400/50 shadow-xs'
               : 'bg-blue-50/40 border-blue-100 hover:bg-blue-50/70 hover:border-blue-200'
           }`}
         >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1 truncate" title={tomorrow_count > 0 ? 'Tomorrow' : `Next: ${nextScheduledLabel}`}>
-              <Clock size={11} className="text-blue-500 shrink-0" />
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1.5 truncate" title={tomorrow_count > 0 ? 'Tomorrow' : `Next: ${nextScheduledLabel}`}>
+              <Clock size={12} className="text-blue-500 shrink-0" />
               {tomorrow_count > 0 ? 'Tomorrow' : nextScheduledLabel}
             </span>
-            <Clock size={13} className="text-blue-600 shrink-0" />
+            <Clock size={14} className="text-blue-600 shrink-0" />
           </div>
           <div className="text-2xl font-black text-blue-900 tracking-tight">
             {tomorrow_count > 0 ? tomorrow_count : next_day_count}
           </div>
-          <span className="text-[10px] text-blue-700/80 font-medium truncate block">
+          <span className="text-[11px] text-blue-700/80 font-medium truncate block">
             {tomorrow_count > 0 ? 'Scheduled Tomorrow' : 'Next Scheduled'}
           </span>
         </div>
@@ -116,48 +112,22 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
         {/* All Upcoming */}
         <div
           onClick={() => setFilterTab('all')}
-          className={`p-2.5 rounded-xl border transition cursor-pointer ${
+          className={`p-3 rounded-xl border transition cursor-pointer ${
             filterTab === 'all'
               ? 'bg-purple-50/90 border-purple-400 ring-1 ring-purple-400/50 shadow-xs'
               : 'bg-purple-50/40 border-purple-100 hover:bg-purple-50/70 hover:border-purple-200'
           }`}
         >
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center justify-between mb-1.5">
             <span className="text-[11px] font-bold text-purple-800 uppercase tracking-wider truncate">
               All Upcoming
             </span>
-            <Sparkles size={13} className="text-purple-600 shrink-0" />
+            <Sparkles size={14} className="text-purple-600 shrink-0" />
           </div>
           <div className="text-2xl font-black text-purple-950 tracking-tight">
             {displayTotal}
           </div>
-          <span className="text-[10px] text-purple-700/80 font-medium">Total Pipeline</span>
-        </div>
-
-        {/* Overdue Action */}
-        <div
-          onClick={() => setFilterTab(filterTab === 'overdue' ? 'all' : 'overdue')}
-          className={`p-2.5 rounded-xl border transition cursor-pointer ${
-            filterTab === 'overdue'
-              ? 'bg-amber-50/90 border-amber-400 ring-1 ring-amber-400/50 shadow-xs'
-              : overdue_count > 0
-              ? 'bg-amber-50/40 border-amber-200 hover:bg-amber-50/70'
-              : 'bg-slate-50 border-slate-100 hover:bg-slate-100'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 truncate ${overdue_count > 0 ? 'text-amber-800' : 'text-slate-600'}`}>
-              <AlertTriangle size={11} className={overdue_count > 0 ? 'text-amber-600' : 'text-slate-400'} />
-              Overdue
-            </span>
-            <AlertTriangle size={13} className={overdue_count > 0 ? 'text-amber-600' : 'text-slate-400'} />
-          </div>
-          <div className={`text-2xl font-black tracking-tight ${overdue_count > 0 ? 'text-amber-950' : 'text-slate-800'}`}>
-            {overdue_count}
-          </div>
-          <span className={`text-[10px] font-medium truncate block ${overdue_count > 0 ? 'text-amber-700' : 'text-slate-400'}`}>
-            {overdue_count > 0 ? 'Needs Follow-up' : 'All Up to Date'}
-          </span>
+          <span className="text-[11px] text-purple-700/80 font-medium">Total Pipeline</span>
         </div>
       </div>
 
@@ -210,19 +180,6 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
               Next 7 Days ({next_7_days_count})
             </button>
           )}
-          {overdue_count > 0 && (
-            <button
-              type="button"
-              onClick={() => setFilterTab('overdue')}
-              className={`px-2.5 py-1 rounded-lg font-semibold transition ${
-                filterTab === 'overdue'
-                  ? 'bg-amber-600 text-white shadow-xs'
-                  : 'text-amber-700 hover:bg-amber-50'
-              }`}
-            >
-              Overdue ({overdue_count})
-            </button>
-          )}
         </div>
       </div>
 
@@ -236,8 +193,6 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
                 ? 'No visits scheduled for today'
                 : filterTab === 'tomorrow'
                 ? 'No visits scheduled for tomorrow'
-                : filterTab === 'overdue'
-                ? 'No overdue visits pending'
                 : 'No visits found in schedule'}
             </span>
             {next_day_date && (filterTab === 'today' || filterTab === 'tomorrow') && (
@@ -265,15 +220,12 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
           activeList.map(item => {
             const isToday = item.visit_timing === 'today';
             const isTomorrow = item.visit_timing === 'tomorrow';
-            const isOverdue = item.visit_timing === 'overdue';
 
             return (
               <div
                 key={item.id}
                 className={`p-3 rounded-xl border transition space-y-2 shadow-2xs hover:shadow-xs ${
-                  isOverdue
-                    ? 'border-amber-200 bg-amber-50/20 hover:bg-amber-50/40'
-                    : isToday
+                  isToday
                     ? 'border-emerald-200 bg-emerald-50/20 hover:bg-emerald-50/40'
                     : 'border-gray-100 hover:border-gray-200 bg-white hover:bg-slate-50/50'
                 }`}
@@ -316,8 +268,6 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                         : isTomorrow
                         ? 'bg-blue-100 text-blue-800 border border-blue-300'
-                        : isOverdue
-                        ? 'bg-amber-100 text-amber-800 border border-amber-300'
                         : 'bg-purple-50 text-purple-700 border border-purple-200'
                     }`}
                   >
@@ -326,8 +276,6 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
                       ? 'Today'
                       : isTomorrow
                       ? 'Tomorrow'
-                      : isOverdue
-                      ? `Overdue (${formatDate(item.next_visit)})`
                       : formatDate(item.next_visit)}
                   </span>
                 </div>
