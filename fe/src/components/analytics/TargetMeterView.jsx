@@ -275,7 +275,7 @@ function DialGaugeMeter({ data, prefix, suffix, isPreview = false, onOpenModal }
         </div>
         <div className="bg-slate-50 rounded-lg p-2 border border-slate-100 relative group">
           <div className="text-[10px] uppercase font-bold text-gray-500 flex items-center justify-center gap-1">
-            <span>Target</span>
+            <span>Target ({targetPeriod})</span>
             {!isPreview && (
               <button
                 type="button"

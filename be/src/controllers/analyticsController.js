@@ -31,6 +31,23 @@ const DATA_SOURCES = {
       created_date: { select: 'DATE(l.created_at) AS label', group: 'DATE(l.created_at)', label: 'Date Created' }
     }
   },
+  users: {
+    table: 'users u',
+    label: 'Sales Representatives & Users',
+    joins: 'LEFT JOIN roles r ON u.role_id = r.id',
+    baseWhere: 'u.is_active = 1',
+    ownerColumn: 'u.id',
+    dateFields: {
+      created_at: { column: 'u.created_at', label: 'Created Date' }
+    },
+    metrics: {
+      id: { column: 'u.id', label: 'Rep Count', aggregations: ['COUNT'] }
+    },
+    dimensions: {
+      role: { select: 'COALESCE(r.name, "User") AS label', group: 'r.name', label: 'Role' },
+      name: { select: 'COALESCE(u.name, "Unassigned") AS label', group: 'u.name', label: 'Representative' }
+    }
+  },
   customers: {
     table: 'customers c',
     label: 'Customers & Accounts',
@@ -1634,6 +1651,23 @@ const isAdmin = req.user.role_name === 'admin';
       const day2Count = Number(day2Rows[0]?.cnt || 0);
       const day2Value = Number(day2Rows[0]?.val || 0);
 
+      // Query latest lead creation date & stats (for weekends/gaps when last 48 hours have 0)
+      const [latestDateRows] = await pool.query(
+        `SELECT DATE(MAX(l.created_at)) AS latest_date FROM leads l WHERE ${rWhereClauses.join(' AND ')}`,
+        rQueryParams
+      );
+      const latestLeadDate = latestDateRows[0]?.latest_date || null;
+      let latestDayCount = 0;
+      let latestDayValue = 0;
+      if (latestLeadDate) {
+        const [latestStats] = await pool.query(
+          `SELECT COUNT(l.id) AS cnt, COALESCE(SUM(l.estimated_value), 0) AS val FROM leads l WHERE ${rWhereClauses.join(' AND ')} AND DATE(l.created_at) = ?`,
+          [...rQueryParams, latestLeadDate]
+        );
+        latestDayCount = Number(latestStats[0]?.cnt || 0);
+        latestDayValue = Number(latestStats[0]?.val || 0);
+      }
+
       // Total recent or fallback items
       const fetchClauses = [...rWhereClauses];
       const fetchParams = [...rQueryParams];
@@ -1673,6 +1707,9 @@ const isAdmin = req.user.role_name === 'admin';
           last_1_day_value: day1Value,
           last_2_days_count: day2Count,
           last_2_days_value: day2Value,
+          latest_lead_date: latestLeadDate,
+          latest_day_count: latestDayCount,
+          latest_day_value: latestDayValue,
           is_realtime: day2Count > 0,
           items
         }

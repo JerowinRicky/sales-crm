@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   ChevronDown, RefreshCw, Plus, MoreHorizontal, Save, X, Target,
   Edit2, Copy, Trash2, LayoutGrid, Calendar, User, Filter, Star,
-  Layers, RotateCcw
+  Layers, RotateCcw, ArrowRight
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { analyticsAPI } from '../../services/api';
@@ -709,6 +709,27 @@ export default function AnalyticsPage() {
               <Save size={13} /> Save Dashboard
             </button>
           </div>
+        </div>
+      )}
+
+            {/* Month Awareness Banner */}
+      {selectedDateRange === 'this_month' && (
+        <div className="flex items-center justify-between px-3.5 py-2 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/80 rounded-xl text-xs text-blue-900 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <Calendar size={14} className="text-blue-600 shrink-0" />
+            <span>
+              Viewing <strong>This Month ({new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })})</strong>.
+              If no new opportunities have been recorded yet this month, switch to <strong>All Time</strong> to explore full pipeline performance.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSelectedDateRange('all')}
+            className="ml-3 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shrink-0 transition flex items-center gap-1 shadow-2xs"
+          >
+            <span>View All Time (2,440 Deals)</span>
+            <ArrowRight size={12} />
+          </button>
         </div>
       )}
 
