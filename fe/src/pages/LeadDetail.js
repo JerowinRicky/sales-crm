@@ -724,11 +724,11 @@ export default function LeadDetail() {
             </div>
           </div>
 
-          {/* Closing Date */}
+          {/* Next Visit Date */}
           <div
-            onClick={() => openEditModal('expected_close_date', 'Closing Date', 'date')}
+            onClick={() => openEditModal('next_visit', 'Next Visit Date', 'date')}
             className="group flex items-center justify-between gap-3.5 sm:pl-6 pt-3 sm:pt-0 cursor-pointer rounded-lg hover:bg-blue-50/50 transition p-2 -m-2"
-            title="Click to edit Closing Date"
+            title="Click to edit Next Visit Date"
           >
             <div className="flex items-center gap-3.5 min-w-0 flex-1">
               <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
@@ -736,17 +736,16 @@ export default function LeadDetail() {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  <span>Closing Date</span>
-                  <span className="text-[10px] text-gray-400 font-normal lowercase">(expected)</span>
+                  <span>Next Visit Date</span>
                 </div>
                 <div className="mt-0.5">
-                  {lead.expected_close_date ? (
+                  {lead.next_visit ? (
                     <span className="text-base font-semibold text-gray-900">
-                      {formatDate(lead.expected_close_date)}
+                      {formatDateTime(lead.next_visit)}
                     </span>
                   ) : (
                     <span className="text-sm text-blue-600 font-medium hover:underline">
-                      + Set closing date
+                      + Set next visit date
                     </span>
                   )}
                 </div>
@@ -756,10 +755,10 @@ export default function LeadDetail() {
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                openEditModal('expected_close_date', 'Closing Date', 'date');
+                openEditModal('next_visit', 'Next Visit Date', 'date');
               }}
               className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-100 rounded-md flex-shrink-0"
-              title="Edit Closing Date"
+              title="Edit Next Visit Date"
             >
               <Pencil size={15} />
             </button>
@@ -893,15 +892,15 @@ export default function LeadDetail() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
               <InfoRow
                 icon={Calendar}
-                label="Closing Date"
-                value={formatDate(lead.expected_close_date)}
-                onEdit={() => openEditModal('expected_close_date', 'Closing Date', 'date')}
-              />
-              <InfoRow
-                icon={Calendar}
                 label="Next Visit"
                 value={formatDateTime(lead.next_visit)}
                 onEdit={() => openEditModal('next_visit', 'Next Visit Date', 'date')}
+              />
+              <InfoRow
+                icon={Calendar}
+                label="Closing Date"
+                value={formatDate(lead.expected_close_date)}
+                onEdit={() => openEditModal('expected_close_date', 'Closing Date', 'date')}
               />
               <InfoRow
                 icon={Calendar}
