@@ -36,14 +36,31 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
     }
   };
 
+  const isItemToday = (item) => {
+    if (item.visit_timing === 'today') return true;
+    if (!item.next_visit) return false;
+    const d = new Date(item.next_visit);
+    const today = new Date();
+    return d.toDateString() === today.toDateString();
+  };
+
+  const isItemTomorrow = (item) => {
+    if (item.visit_timing === 'tomorrow') return true;
+    if (!item.next_visit) return false;
+    const d = new Date(item.next_visit);
+    const tom = new Date();
+    tom.setDate(tom.getDate() + 1);
+    return d.toDateString() === tom.toDateString();
+  };
+
   // Filter items strictly for Today and/or Tomorrow
   let activeList = [];
   if (filterTab === 'today') {
-    activeList = items.filter(item => item.visit_timing === 'today');
+    activeList = items.filter(item => isItemToday(item));
   } else if (filterTab === 'tomorrow') {
-    activeList = items.filter(item => item.visit_timing === 'tomorrow');
+    activeList = items.filter(item => isItemTomorrow(item));
   } else {
-    activeList = items.filter(item => item.visit_timing === 'today' || item.visit_timing === 'tomorrow');
+    activeList = items.filter(item => isItemToday(item) || isItemTomorrow(item));
   }
 
   return (
@@ -150,7 +167,7 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
                 ? 'No visits scheduled for tomorrow'
                 : 'No visits scheduled for today or tomorrow'}
             </span>
-            {next_day_date && (
+            {today_count === 0 && tomorrow_count === 0 && next_day_date && (
               <p className="text-[11px] text-gray-500 mt-1">
                 Next scheduled client visit is on <strong className="text-gray-800">{formatDate(next_day_date)}</strong> ({next_day_count} visit)
               </p>
@@ -158,8 +175,8 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
           </div>
         ) : (
           activeList.map(item => {
-            const isToday = item.visit_timing === 'today';
-            const isTomorrow = item.visit_timing === 'tomorrow';
+            const isToday = isItemToday(item);
+            const isTomorrow = isItemTomorrow(item);
 
             return (
               <div
