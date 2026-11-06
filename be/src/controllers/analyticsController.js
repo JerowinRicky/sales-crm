@@ -1281,7 +1281,7 @@ const isAdmin = req.user.role_name === 'admin';
 
     if (component_type === 'next_visits') {
       const visitRange = configuration.visit_range || 'all_upcoming';
-      const limitNum = Math.min(Math.max(parseInt(configuration.limit || limit) || 100, 1), 200);
+      const limitNum = Math.min(Math.max(parseInt(configuration.limit || limit) || 100, 50), 200);
 
       const vWhereClauses = ['l.is_active = TRUE', 'l.next_visit IS NOT NULL'];
       const vQueryParams = [];

@@ -184,6 +184,8 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
                 className={`p-3 rounded-xl border transition space-y-2 shadow-2xs hover:shadow-xs ${
                   isToday
                     ? 'border-emerald-200 bg-emerald-50/20 hover:bg-emerald-50/40'
+                    : isTomorrow
+                    ? 'border-blue-200 bg-blue-50/20 hover:bg-blue-50/40'
                     : 'border-gray-100 hover:border-gray-200 bg-white hover:bg-slate-50/50'
                 }`}
               >
