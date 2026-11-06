@@ -1,28 +1,25 @@
 import React, { useState } from 'react';
 import {
   Calendar, Clock, User, Phone, Mail, Building,
-  CheckCircle, ArrowUpRight, Sparkles, MapPin, Tag,
-  ArrowRight
+  CheckCircle, ArrowUpRight, MapPin, Tag
 } from 'lucide-react';
 import { formatMetricValue } from './TargetMeterView';
 
 export default function NextVisitsView({ data, configuration, onRefresh }) {
-  const [filterTab, setFilterTab] = useState('all'); // 'all', 'today', 'tomorrow', 'next_7_days'
-
   if (!data) return null;
 
   const {
     today_count = 0,
     tomorrow_count = 0,
-    upcoming_count = 0,
     next_day_date = null,
     next_day_count = 0,
-    next_7_days_count = 0,
-    total_count = 0,
     items = []
   } = data;
 
-  const displayTotal = upcoming_count || total_count;
+  // Default to 'today' if today has visits, else 'tomorrow' if tomorrow has visits, else 'today'
+  const [filterTab, setFilterTab] = useState(
+    today_count > 0 ? 'today' : (tomorrow_count > 0 ? 'tomorrow' : 'today')
+  );
 
   // Format date helper
   const formatDate = (dateStr) => {
@@ -39,33 +36,23 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
     }
   };
 
-  // Determine active items list based on selected filterTab
-  let activeList = items;
+  // Filter items strictly for Today and/or Tomorrow
+  let activeList = [];
   if (filterTab === 'today') {
     activeList = items.filter(item => item.visit_timing === 'today');
   } else if (filterTab === 'tomorrow') {
     activeList = items.filter(item => item.visit_timing === 'tomorrow');
-  } else if (filterTab === 'next_7_days') {
-    const now = new Date();
-    const nextWeek = new Date();
-    nextWeek.setDate(now.getDate() + 7);
-    activeList = items.filter(item => {
-      if (!item.next_visit) return false;
-      const d = new Date(item.next_visit);
-      return d >= now && d <= nextWeek;
-    });
+  } else {
+    activeList = items.filter(item => item.visit_timing === 'today' || item.visit_timing === 'tomorrow');
   }
-
-  // Label for next working day
-  const nextScheduledLabel = next_day_date ? formatDate(next_day_date) : 'Upcoming';
 
   return (
     <div className="flex flex-col h-full space-y-3 p-1">
-      {/* Top Metric Cards - 3 Columns */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+      {/* Top Metric Cards - Today & Tomorrow Only (2 Columns) */}
+      <div className="grid grid-cols-2 gap-3">
         {/* Today */}
         <div
-          onClick={() => setFilterTab(filterTab === 'today' ? 'all' : 'today')}
+          onClick={() => setFilterTab('today')}
           className={`p-3 rounded-xl border transition cursor-pointer ${
             filterTab === 'today'
               ? 'bg-emerald-50/90 border-emerald-400 ring-1 ring-emerald-400/50 shadow-xs'
@@ -77,7 +64,7 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
               <span className={`w-2 h-2 rounded-full ${today_count > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-emerald-300'}`}></span>
               Today
             </span>
-            <Calendar size={14} className="text-emerald-600 shrink-0" />
+            <Calendar size={15} className="text-emerald-600 shrink-0" />
           </div>
           <div className="text-2xl font-black text-emerald-900 tracking-tight">
             {today_count}
@@ -85,9 +72,9 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
           <span className="text-[11px] text-emerald-700/80 font-medium">Scheduled Today</span>
         </div>
 
-        {/* Tomorrow or Next Scheduled Working Day */}
+        {/* Tomorrow */}
         <div
-          onClick={() => setFilterTab(tomorrow_count > 0 ? (filterTab === 'tomorrow' ? 'all' : 'tomorrow') : 'all')}
+          onClick={() => setFilterTab('tomorrow')}
           className={`p-3 rounded-xl border transition cursor-pointer ${
             filterTab === 'tomorrow'
               ? 'bg-blue-50/90 border-blue-400 ring-1 ring-blue-400/50 shadow-xs'
@@ -95,39 +82,18 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
           }`}
         >
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1.5 truncate" title={tomorrow_count > 0 ? 'Tomorrow' : `Next: ${nextScheduledLabel}`}>
+            <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1.5 truncate">
               <Clock size={12} className="text-blue-500 shrink-0" />
-              {tomorrow_count > 0 ? 'Tomorrow' : nextScheduledLabel}
+              Tomorrow
             </span>
-            <Clock size={14} className="text-blue-600 shrink-0" />
+            <Clock size={15} className="text-blue-600 shrink-0" />
           </div>
           <div className="text-2xl font-black text-blue-900 tracking-tight">
-            {tomorrow_count > 0 ? tomorrow_count : next_day_count}
+            {tomorrow_count}
           </div>
           <span className="text-[11px] text-blue-700/80 font-medium truncate block">
-            {tomorrow_count > 0 ? 'Scheduled Tomorrow' : 'Next Scheduled'}
+            Scheduled Tomorrow
           </span>
-        </div>
-
-        {/* All Upcoming */}
-        <div
-          onClick={() => setFilterTab('all')}
-          className={`p-3 rounded-xl border transition cursor-pointer ${
-            filterTab === 'all'
-              ? 'bg-purple-50/90 border-purple-400 ring-1 ring-purple-400/50 shadow-xs'
-              : 'bg-purple-50/40 border-purple-100 hover:bg-purple-50/70 hover:border-purple-200'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-bold text-purple-800 uppercase tracking-wider truncate">
-              All Upcoming
-            </span>
-            <Sparkles size={14} className="text-purple-600 shrink-0" />
-          </div>
-          <div className="text-2xl font-black text-purple-950 tracking-tight">
-            {displayTotal}
-          </div>
-          <span className="text-[11px] text-purple-700/80 font-medium">Total Pipeline</span>
         </div>
       </div>
 
@@ -136,22 +102,11 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
         <div className="flex items-center gap-1 text-xs flex-wrap">
           <button
             type="button"
-            onClick={() => setFilterTab('all')}
-            className={`px-2.5 py-1 rounded-lg font-semibold transition ${
-              filterTab === 'all'
-                ? 'bg-purple-600 text-white shadow-xs'
-                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-            }`}
-          >
-            All Upcoming ({displayTotal})
-          </button>
-          <button
-            type="button"
             onClick={() => setFilterTab('today')}
-            className={`px-2.5 py-1 rounded-lg font-semibold transition ${
+            className={`px-3 py-1 rounded-lg font-semibold transition ${
               filterTab === 'today'
                 ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-gray-500 hover:text-emerald-700 hover:bg-emerald-50'
+                : 'text-gray-600 hover:text-emerald-700 hover:bg-emerald-50'
             }`}
           >
             Today ({today_count})
@@ -159,25 +114,25 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
           <button
             type="button"
             onClick={() => setFilterTab('tomorrow')}
-            className={`px-2.5 py-1 rounded-lg font-semibold transition ${
+            className={`px-3 py-1 rounded-lg font-semibold transition ${
               filterTab === 'tomorrow'
                 ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-gray-500 hover:text-blue-700 hover:bg-blue-50'
+                : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
             }`}
           >
             Tomorrow ({tomorrow_count})
           </button>
-          {next_7_days_count > 0 && (
+          {(today_count > 0 && tomorrow_count > 0) && (
             <button
               type="button"
-              onClick={() => setFilterTab('next_7_days')}
-              className={`px-2.5 py-1 rounded-lg font-semibold transition ${
-                filterTab === 'next_7_days'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'text-gray-500 hover:text-indigo-700 hover:bg-indigo-50'
+              onClick={() => setFilterTab('all')}
+              className={`px-3 py-1 rounded-lg font-semibold transition ${
+                filterTab === 'all'
+                  ? 'bg-gray-800 text-white shadow-xs'
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
               }`}
             >
-              Next 7 Days ({next_7_days_count})
+              All ({today_count + tomorrow_count})
             </button>
           )}
         </div>
@@ -193,27 +148,12 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
                 ? 'No visits scheduled for today'
                 : filterTab === 'tomorrow'
                 ? 'No visits scheduled for tomorrow'
-                : 'No visits found in schedule'}
+                : 'No visits scheduled for today or tomorrow'}
             </span>
-            {next_day_date && (filterTab === 'today' || filterTab === 'tomorrow') && (
-              <p className="text-[11px] text-gray-500 mt-1 mb-2">
-                Next scheduled client visit is on <strong className="text-gray-800">{nextScheduledLabel}</strong> ({next_day_count} visit)
+            {next_day_date && (
+              <p className="text-[11px] text-gray-500 mt-1">
+                Next scheduled client visit is on <strong className="text-gray-800">{formatDate(next_day_date)}</strong> ({next_day_count} visit)
               </p>
-            )}
-            <p className="text-[11px] text-gray-400 mt-0.5 mb-2.5">
-              {filterTab !== 'all' && displayTotal > 0
-                ? `You have ${displayTotal} upcoming scheduled visits in the calendar.`
-                : 'No visits found in this timeframe.'}
-            </p>
-            {filterTab !== 'all' && displayTotal > 0 && (
-              <button
-                type="button"
-                onClick={() => setFilterTab('all')}
-                className="px-3 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs font-bold hover:bg-purple-100 transition flex items-center gap-1 mx-auto"
-              >
-                <span>View All {displayTotal} Upcoming Visits</span>
-                <ArrowRight size={12} />
-              </button>
             )}
           </div>
         ) : (
@@ -268,7 +208,7 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                         : isTomorrow
                         ? 'bg-blue-100 text-blue-800 border border-blue-300'
-                        : 'bg-purple-50 text-purple-700 border border-purple-200'
+                        : 'bg-gray-100 text-gray-700 border border-gray-200'
                     }`}
                   >
                     <Clock size={11} />
