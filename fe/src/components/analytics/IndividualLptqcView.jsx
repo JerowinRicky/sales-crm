@@ -20,7 +20,7 @@ export default function IndividualLptqcView({ data, configuration, onRefresh }) 
       { code: 'P', label: 'Prospect', fullName: 'Prospect', color: '#0ea5e9' },
       { code: 'T', label: 'Technical', fullName: 'Demo - POC', color: '#f59e0b' },
       { code: 'Q', label: 'Quotation', fullName: 'Proposal', color: '#f97316' },
-      { code: 'C', label: 'Closed', fullName: 'Won / PO Scheduled', color: '#16a34a' }
+      { code: 'C', label: 'PO Scheduled', fullName: 'PO Scheduled', color: '#2563eb' }
     ],
     is_single_user = false,
     prefix = '₹'
@@ -169,8 +169,8 @@ export default function IndividualLptqcView({ data, configuration, onRefresh }) 
                   <th className="py-2 px-2 text-center text-orange-700 bg-orange-50/40">
                     Q (Quote)
                   </th>
-                  <th className="py-2 px-2 text-center text-emerald-700 bg-emerald-50/40">
-                    C (Closed)
+                  <th className="py-2 px-2 text-center text-blue-700 bg-blue-50/40">
+                    C (PO Scheduled)
                   </th>
                   <th className="py-2 px-3 text-right">Total Pipeline</th>
                 </tr>
@@ -220,7 +220,7 @@ export default function IndividualLptqcView({ data, configuration, onRefresh }) 
                       </td>
 
                       {/* C */}
-                      <td className="py-2 px-2 text-center font-black text-emerald-800 bg-emerald-50/40">
+                      <td className="py-2 px-2 text-center font-black text-blue-800 bg-blue-50/40">
                         {metricMode === 'value' ? formatMetricValue(item.C.value, prefix) : item.C.count}
                       </td>
 

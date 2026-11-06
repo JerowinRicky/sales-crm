@@ -13,9 +13,12 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
   const {
     today_count = 0,
     tomorrow_count = 0,
+    upcoming_count = 0,
     total_count = 0,
     items = []
   } = data;
+
+  const displayTotal = upcoming_count || total_count;
 
   const filteredItems = items.filter(item => {
     if (filterTab === 'today') return item.visit_timing === 'today';
@@ -28,9 +31,9 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
     try {
       const d = new Date(dateStr);
       return d.toLocaleDateString('en-IN', {
+        weekday: 'short',
         month: 'short',
-        day: 'numeric',
-        year: 'numeric'
+        day: 'numeric'
       });
     } catch {
       return dateStr;
@@ -59,7 +62,7 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
           <div className="text-2xl font-black text-emerald-900 tracking-tight">
             {today_count}
           </div>
-          <span className="text-[10px] text-emerald-700/80 font-medium">Scheduled Visits</span>
+          <span className="text-[10px] text-emerald-700/80 font-medium">Scheduled Today</span>
         </div>
 
         <div
@@ -80,27 +83,27 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
           <div className="text-2xl font-black text-blue-900 tracking-tight">
             {tomorrow_count}
           </div>
-          <span className="text-[10px] text-blue-700/80 font-medium">Upcoming Visits</span>
+          <span className="text-[10px] text-blue-700/80 font-medium">Scheduled Tomorrow</span>
         </div>
 
         <div
           onClick={() => setFilterTab('all')}
           className={`p-2.5 rounded-xl border transition cursor-pointer ${
             filterTab === 'all'
-              ? 'bg-slate-100 border-slate-400 ring-1 ring-slate-400/50 shadow-xs'
-              : 'bg-slate-50 border-slate-200 hover:bg-slate-100/70 hover:border-slate-300'
+              ? 'bg-purple-50/80 border-purple-400 ring-1 ring-purple-400/50 shadow-xs'
+              : 'bg-purple-50/40 border-purple-100 hover:bg-purple-50/70 hover:border-purple-200'
           }`}
         >
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-              Total
+            <span className="text-[11px] font-bold text-purple-800 uppercase tracking-wider">
+              All Upcoming
             </span>
-            <Sparkles size={13} className="text-slate-500" />
+            <Sparkles size={13} className="text-purple-600" />
           </div>
-          <div className="text-2xl font-black text-slate-800 tracking-tight">
-            {total_count}
+          <div className="text-2xl font-black text-purple-950 tracking-tight">
+            {displayTotal}
           </div>
-          <span className="text-[10px] text-slate-500 font-medium">Both Days</span>
+          <span className="text-[10px] text-purple-700/80 font-medium">Total Upcoming</span>
         </div>
       </div>
 
@@ -112,11 +115,11 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
             onClick={() => setFilterTab('all')}
             className={`px-2.5 py-1 rounded-lg font-semibold transition ${
               filterTab === 'all'
-                ? 'bg-blue-600 text-white shadow-xs'
+                ? 'bg-purple-600 text-white shadow-xs'
                 : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
             }`}
           >
-            All Visits ({total_count})
+            All Upcoming ({displayTotal})
           </button>
           <button
             type="button"
@@ -148,10 +151,23 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
         {filteredItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center text-gray-400">
             <Calendar size={28} className="text-gray-300 mb-2" />
-            <span className="text-xs font-semibold text-gray-600">No scheduled visits found</span>
-            <p className="text-[11px] text-gray-400 mt-0.5">
-              {filterTab === 'today' ? 'No visits are scheduled for today.' : filterTab === 'tomorrow' ? 'No visits scheduled for tomorrow.' : 'No visits scheduled for today or tomorrow.'}
+            <span className="text-xs font-semibold text-gray-600">
+              {filterTab === 'today' ? 'No visits are scheduled for today' : filterTab === 'tomorrow' ? 'No visits are scheduled for tomorrow' : 'No upcoming visits found'}
+            </span>
+            <p className="text-[11px] text-gray-400 mt-0.5 mb-2.5">
+              {filterTab !== 'all' && displayTotal > 0
+                ? `You have ${displayTotal} upcoming scheduled visits in the calendar.`
+                : 'No upcoming visits found in the schedule.'}
             </p>
+            {filterTab !== 'all' && displayTotal > 0 && (
+              <button
+                type="button"
+                onClick={() => setFilterTab('all')}
+                className="px-3 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs font-semibold hover:bg-purple-100 transition"
+              >
+                View All Upcoming ({displayTotal})
+              </button>
+            )}
           </div>
         ) : (
           filteredItems.map(item => {
@@ -201,7 +217,7 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                         : isTomorrow
                         ? 'bg-blue-100 text-blue-800 border border-blue-300'
-                        : 'bg-gray-100 text-gray-700 border border-gray-200'
+                        : 'bg-purple-50 text-purple-700 border border-purple-200'
                     }`}
                   >
                     <Clock size={11} />
@@ -219,22 +235,15 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
                       </span>
                     )}
                     {item.contact_name && (
-                      <span className="hidden sm:inline-flex items-center gap-1 text-gray-500">
+                      <span className="text-gray-400 text-[10px] hidden sm:inline">
                         • {item.contact_name}
-                      </span>
-                    )}
-                    {item.contact_phone && item.contact_phone !== 'N/A' && (
-                      <span className="hidden sm:inline-flex items-center gap-1 text-blue-600">
-                        <Phone size={10} /> {item.contact_phone}
                       </span>
                     )}
                   </div>
 
-                  {item.estimated_value > 0 && (
-                    <span className="font-bold text-gray-900 text-xs">
-                      {formatMetricValue(item.estimated_value, '₹')}
-                    </span>
-                  )}
+                  <div className="font-bold text-xs text-gray-900">
+                    {formatMetricValue(item.estimated_value || 0, 'currency', '₹')}
+                  </div>
                 </div>
               </div>
             );
@@ -244,4 +253,3 @@ export default function NextVisitsView({ data, configuration, onRefresh }) {
     </div>
   );
 }
-

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sparkles, RefreshCw, BarChart2, Hash, Target, GitMerge, Trophy, Calendar, Layers, Users } from 'lucide-react';
+import { X, Sparkles, RefreshCw, BarChart2, Hash, Target, GitMerge, Trophy, Calendar, Layers, Users, Clock } from 'lucide-react';
 import { analyticsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import TargetMeterView from './TargetMeterView';
@@ -10,6 +10,7 @@ import LeaderboardView from './LeaderboardView';
 import NextVisitsView from './NextVisitsView';
 import DomainLeadsView from './DomainLeadsView';
 import IndividualLptqcView from './IndividualLptqcView';
+import RecentLeadsView from './RecentLeadsView';
 import TargetMeterStyleModal from './TargetMeterStyleModal';
 
 export default function ComponentEditorModal({
@@ -125,12 +126,18 @@ export default function ComponentEditorModal({
         });
       } else if (type === 'individual_lptqc') {
         setTitle('Individual LPTQC Pipeline');
-        setDescription('Individual sales executive pipeline across Lead, Prospect, Technical, Quote, and Closed stages');
+        setDescription('Individual sales executive pipeline across Lead, Prospect, Technical, Quote, and PO Scheduled stages');
         setConfig({
           default_metric: 'count',
           limit: 20,
           sort_by: 'total_value',
           prefix: '₹'
+        });
+      } else if (type === 'recent_leads') {
+        setTitle('Recent Leads (Last 1-2 Days)');
+        setDescription('Newly created leads in the last 24 to 48 hours with rep, stage, and pipeline value');
+        setConfig({
+          limit: 15
         });
       } else {
         setTitle('Leads by Stage');
@@ -204,8 +211,8 @@ export default function ComponentEditorModal({
       layout: initialComponent?.layout || {
         x: 0,
         y: 0,
-        width: componentType === 'kpi' ? 3 : componentType === 'individual_lptqc' ? 12 : (componentType === 'leaderboard' || componentType === 'domain_leads' ? 8 : 6),
-        height: componentType === 'kpi' ? 3 : (componentType === 'individual_lptqc' ? 6 : (componentType === 'leaderboard' ? 5 : 4))
+        width: componentType === 'kpi' ? 3 : (componentType === 'individual_lptqc' || componentType === 'recent_leads') ? 12 : (componentType === 'leaderboard' || componentType === 'domain_leads' ? 8 : 6),
+        height: componentType === 'kpi' ? 3 : (componentType === 'individual_lptqc' || componentType === 'recent_leads' ? 6 : (componentType === 'leaderboard' ? 5 : 4))
       }
     };
 
@@ -248,6 +255,7 @@ export default function ComponentEditorModal({
                   { id: 'next_visits', name: 'Next Visits', icon: Calendar, desc: 'Today & tomorrow visits' },
                   { id: 'domain_leads', name: 'Domain Leads', icon: Layers, desc: 'Domain breakdown & value' },
                   { id: 'individual_lptqc', name: 'Individual LPTQC', icon: Users, desc: 'Rep pipeline by stage' },
+                  { id: 'recent_leads', name: 'Recent Leads (1-2 Days)', icon: Clock, desc: 'Last 1-2 days new leads' },
                 ].map(item => {
                   const isCur = componentType === item.id;
                   const Icon = item.icon;
@@ -865,6 +873,12 @@ export default function ComponentEditorModal({
                           )}
                           {componentType === 'individual_lptqc' && (
                             <IndividualLptqcView
+                              data={previewData}
+                              configuration={config}
+                            />
+                          )}
+                          {componentType === 'recent_leads' && (
+                            <RecentLeadsView
                               data={previewData}
                               configuration={config}
                             />

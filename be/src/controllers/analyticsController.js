@@ -153,6 +153,16 @@ function buildDateCondition(dateFieldCol, dateRange, dateFrom, dateTo) {
   if (!dateFieldCol) return { currentClauses, currentParams, prevClauses, prevParams };
 
   switch (dateRange) {
+    case 'last_1_day':
+    case 'last_one_day':
+      currentClauses.push(`DATE(${dateFieldCol}) >= DATE_SUB(CURDATE(), INTERVAL 1 DAY)`);
+      prevClauses.push(`DATE(${dateFieldCol}) BETWEEN DATE_SUB(CURDATE(), INTERVAL 3 DAY) AND DATE_SUB(CURDATE(), INTERVAL 2 DAY)`);
+      break;
+    case 'last_2_days':
+    case 'last_two_days':
+      currentClauses.push(`DATE(${dateFieldCol}) >= DATE_SUB(CURDATE(), INTERVAL 2 DAY)`);
+      prevClauses.push(`DATE(${dateFieldCol}) BETWEEN DATE_SUB(CURDATE(), INTERVAL 4 DAY) AND DATE_SUB(CURDATE(), INTERVAL 3 DAY)`);
+      break;
     case 'today':
       currentClauses.push(`DATE(${dateFieldCol}) = CURDATE()`);
       prevClauses.push(`DATE(${dateFieldCol}) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)`);
@@ -1228,15 +1238,17 @@ const isAdmin = req.user.role_name === 'admin';
     }
 
     if (component_type === 'next_visits') {
-      const visitRange = configuration.visit_range || 'today_and_tomorrow';
-      const limitNum = Math.min(Math.max(parseInt(configuration.limit || limit) || 10, 1), 50);
+      const visitRange = configuration.visit_range || 'all_upcoming';
+      const limitNum = Math.min(Math.max(parseInt(configuration.limit || limit) || 15, 1), 50);
 
       const vWhereClauses = ['l.is_active = TRUE', 'l.next_visit IS NOT NULL'];
       const vQueryParams = [];
 
       applyDataScoping({ user: req.user, ds: DATA_SOURCES.leads, dashboard_filters, whereClauses: vWhereClauses, queryParams: vQueryParams });
 
-      if (stageClauses.length > 0) {
+      // Only apply stage filter if NOT won_po_receipt (or if explicitly selected a non-won stage)
+      // Because won deals do not have scheduled next visits
+      if (dashboard_filters.stage_id && dashboard_filters.stage_id !== 'all' && dashboard_filters.stage_id !== 'won_po_receipt') {
         vWhereClauses.push(...stageClauses);
         vQueryParams.push(...stageParams);
       }
@@ -1254,6 +1266,12 @@ const isAdmin = req.user.role_name === 'admin';
       );
       const tomorrowCount = Number(tomorrowCountRows[0]?.cnt || 0);
 
+      const [upcomingCountRows] = await pool.query(
+        `SELECT COUNT(l.id) AS cnt FROM leads l LEFT JOIN lead_stages s ON l.stage_id = s.id WHERE ${vWhereClauses.join(' AND ')} AND DATE(l.next_visit) >= CURDATE()`,
+        vQueryParams
+      );
+      const upcomingCount = Number(upcomingCountRows[0]?.cnt || 0);
+
       // Now apply the active range condition
       const itemClauses = [...vWhereClauses];
       const itemParams = [...vQueryParams];
@@ -1264,11 +1282,9 @@ const isAdmin = req.user.role_name === 'admin';
         itemClauses.push('DATE(l.next_visit) = CURDATE() + INTERVAL 1 DAY');
       } else if (visitRange === 'upcoming_7_days') {
         itemClauses.push('DATE(l.next_visit) BETWEEN CURDATE() AND CURDATE() + INTERVAL 7 DAY');
-      } else if (visitRange === 'all_upcoming') {
-        itemClauses.push('DATE(l.next_visit) >= CURDATE()');
       } else {
-        // default: today_and_tomorrow
-        itemClauses.push('DATE(l.next_visit) IN (CURDATE(), CURDATE() + INTERVAL 1 DAY)');
+        // default: upcoming visits from today onwards
+        itemClauses.push('DATE(l.next_visit) >= CURDATE()');
       }
 
       const [totalCountRows] = await pool.query(
@@ -1306,6 +1322,7 @@ const isAdmin = req.user.role_name === 'admin';
         data: {
           today_count: todayCount,
           tomorrow_count: tomorrowCount,
+          upcoming_count: upcomingCount,
           total_count: totalCount,
           visit_range: visitRange,
           items: items
@@ -1443,14 +1460,15 @@ const isAdmin = req.user.role_name === 'admin';
           -- Q: Quotation / Proposal (Stage 5 Proposal)
           SUM(CASE WHEN l.stage_id = 5 THEN 1 ELSE 0 END) AS q_count,
           SUM(CASE WHEN l.stage_id = 5 THEN COALESCE(l.estimated_value, 0) ELSE 0 END) AS q_value,
-          -- C: Closed / Won / PO (Stage 8 Won - PO Receipt, Stage 11 PO Scheduled)
-          SUM(CASE WHEN l.stage_id IN (8, 11) THEN 1 ELSE 0 END) AS c_count,
-          SUM(CASE WHEN l.stage_id IN (8, 11) THEN COALESCE(l.estimated_value, 0) ELSE 0 END) AS c_value,
+          -- C: PO Scheduled (Stage 11 PO Scheduled)
+          SUM(CASE WHEN l.stage_id = 11 OR s.name LIKE '%PO%Scheduled%' THEN 1 ELSE 0 END) AS c_count,
+          SUM(CASE WHEN l.stage_id = 11 OR s.name LIKE '%PO%Scheduled%' THEN COALESCE(l.estimated_value, 0) ELSE 0 END) AS c_value,
           COUNT(l.id) AS total_count,
           SUM(COALESCE(l.estimated_value, 0)) AS total_value
         FROM users u
         LEFT JOIN roles r ON u.role_id = r.id
         LEFT JOIN leads l ON l.assigned_to = u.id AND ${lptqcLeadClauses.join(' AND ')}
+        LEFT JOIN lead_stages s ON l.stage_id = s.id
         ${userWhereClause}
         GROUP BY u.id, u.name, u.email, r.name
         ORDER BY ${sortOrderSql}
@@ -1488,7 +1506,7 @@ const isAdmin = req.user.role_name === 'admin';
         { code: 'P', label: 'Prospect', fullName: 'Prospect', color: '#0ea5e9', stage_id: 3 },
         { code: 'T', label: 'Technical', fullName: 'Demo - POC', color: '#f59e0b', stage_id: 4 },
         { code: 'Q', label: 'Quotation', fullName: 'Proposal', color: '#f97316', stage_id: 5 },
-        { code: 'C', label: 'Closed', fullName: 'Won / PO Scheduled', color: '#16a34a', stage_id: 8 }
+        { code: 'C', label: 'PO Scheduled', fullName: 'PO Scheduled', color: '#2563eb', stage_id: 11 }
       ];
 
       return res.json({
@@ -1500,6 +1518,84 @@ const isAdmin = req.user.role_name === 'admin';
           default_metric: configuration.default_metric || 'count',
           is_single_user: Boolean(filteredUserId || isSalesperson),
           prefix: configuration.prefix || '₹'
+        }
+      });
+    }
+
+    if (component_type === 'recent_leads') {
+      const limitNum = Math.min(Math.max(parseInt(configuration.limit || limit) || 15, 1), 50);
+
+      const rWhereClauses = ['l.is_active = TRUE'];
+      const rQueryParams = [];
+
+      applyDataScoping({ user: req.user, ds: DATA_SOURCES.leads, dashboard_filters, whereClauses: rWhereClauses, queryParams: rQueryParams });
+
+      if (stageClauses.length > 0 && dashboard_filters.stage_id && dashboard_filters.stage_id !== 'all') {
+        rWhereClauses.push(...stageClauses);
+        rQueryParams.push(...stageParams);
+      }
+
+      // Count & Value for Last 1 Day (last 24 hours / since yesterday)
+      const [day1Rows] = await pool.query(
+        `SELECT COUNT(l.id) AS cnt, COALESCE(SUM(l.estimated_value), 0) AS val 
+         FROM leads l LEFT JOIN lead_stages s ON l.stage_id = s.id 
+         WHERE ${rWhereClauses.join(' AND ')} AND DATE(l.created_at) >= DATE_SUB(CURDATE(), INTERVAL 1 DAY)`,
+        rQueryParams
+      );
+      const day1Count = Number(day1Rows[0]?.cnt || 0);
+      const day1Value = Number(day1Rows[0]?.val || 0);
+
+      // Count & Value for Last 2 Days (last 48 hours / since 2 days ago)
+      const [day2Rows] = await pool.query(
+        `SELECT COUNT(l.id) AS cnt, COALESCE(SUM(l.estimated_value), 0) AS val 
+         FROM leads l LEFT JOIN lead_stages s ON l.stage_id = s.id 
+         WHERE ${rWhereClauses.join(' AND ')} AND DATE(l.created_at) >= DATE_SUB(CURDATE(), INTERVAL 2 DAY)`,
+        rQueryParams
+      );
+      const day2Count = Number(day2Rows[0]?.cnt || 0);
+      const day2Value = Number(day2Rows[0]?.val || 0);
+
+      // Total recent or fallback items
+      const fetchClauses = [...rWhereClauses];
+      const fetchParams = [...rQueryParams];
+
+      if (day2Count > 0) {
+        fetchClauses.push('DATE(l.created_at) >= DATE_SUB(CURDATE(), INTERVAL 2 DAY)');
+      }
+
+      const recentSql = `
+        SELECT 
+          l.id, l.title, l.company_name, l.contact_name, l.contact_phone, l.contact_email,
+          l.created_at, l.estimated_value, l.priority,
+          s.name AS stage_name, s.color AS stage_color,
+          u.name AS assigned_to_name,
+          dom.name AS domain_name,
+          CASE 
+            WHEN DATE(l.created_at) = CURDATE() THEN 'today'
+            WHEN DATE(l.created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY) THEN '1_day_ago'
+            WHEN DATE(l.created_at) = DATE_SUB(CURDATE(), INTERVAL 2 DAY) THEN '2_days_ago'
+            ELSE 'older'
+          END AS age_tag
+        FROM leads l
+        LEFT JOIN lead_stages s ON l.stage_id = s.id
+        LEFT JOIN users u ON l.assigned_to = u.id
+        LEFT JOIN domains dom ON l.domain_id = dom.id
+        WHERE ${fetchClauses.join(' AND ')}
+        ORDER BY l.created_at DESC
+        LIMIT ?
+      `;
+
+      const [items] = await pool.query(recentSql, [...fetchParams, limitNum]);
+
+      return res.json({
+        success: true,
+        data: {
+          last_1_day_count: day1Count,
+          last_1_day_value: day1Value,
+          last_2_days_count: day2Count,
+          last_2_days_value: day2Value,
+          is_realtime: day2Count > 0,
+          items
         }
       });
     }
@@ -1585,6 +1681,8 @@ exports.getSchemaMetadata = async (req, res) => {
         domains,
         date_ranges: [
           { key: 'all', label: 'All Time' },
+          { key: 'last_1_day', label: 'Last 1 Day' },
+          { key: 'last_2_days', label: 'Last 2 Days' },
           { key: 'today', label: 'Today' },
           { key: 'yesterday', label: 'Yesterday' },
           { key: 'this_week', label: 'This Week' },

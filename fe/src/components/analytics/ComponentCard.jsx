@@ -12,6 +12,7 @@ import LeaderboardView from './LeaderboardView';
 import NextVisitsView from './NextVisitsView';
 import DomainLeadsView from './DomainLeadsView';
 import IndividualLptqcView from './IndividualLptqcView';
+import RecentLeadsView from './RecentLeadsView';
 
 export default function ComponentCard({
   component,
@@ -275,6 +276,13 @@ export default function ComponentCard({
             )}
             {component.component_type === 'individual_lptqc' && (
               <IndividualLptqcView
+                data={data}
+                configuration={component.configuration}
+                onRefresh={() => loadData()}
+              />
+            )}
+            {component.component_type === 'recent_leads' && (
+              <RecentLeadsView
                 data={data}
                 configuration={component.configuration}
                 onRefresh={() => loadData()}

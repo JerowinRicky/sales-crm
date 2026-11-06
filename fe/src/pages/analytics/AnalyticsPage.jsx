@@ -14,6 +14,8 @@ import ConfirmModal from '../../components/common/ConfirmModal';
 
 const DEFAULT_DATE_RANGES = [
   { key: 'all', label: 'All Time' },
+  { key: 'last_1_day', label: 'Last 1 Day' },
+  { key: 'last_2_days', label: 'Last 2 Days' },
   { key: 'today', label: 'Today' },
   { key: 'yesterday', label: 'Yesterday' },
   { key: 'this_week', label: 'This Week' },
